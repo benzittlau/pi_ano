@@ -21,18 +21,26 @@ UNDERSENSITIVE = 120.0/INPUT_BLOCK_TIME
 # if the noise was longer than this many blocks, it's not a 'tap'
 MAX_TAP_BLOCKS = 0.15/INPUT_BLOCK_TIME
 
+# STATES
+# 'BOOTING'
+# 'IDLE'
+# 'RECORDING'
+# 'POST_RECORDING' 
+
 def get_rms (block):
     return audioop.rms(block, 2) * SHORT_NORMALIZE
 
 
 class TapTester(object):
     def __init__(self):
+        self.current_state = 'BOOTING'
         self.pa = pyaudio.PyAudio()
         self.stream = self.open_mic_stream()
         self.tap_threshold = INITIAL_TAP_THRESHOLD
         self.noisycount = MAX_TAP_BLOCKS+1 
         self.quietcount = 0 
         self.errorcount = 0
+        self.current_state = 'IDLE'
 
     def stop(self):
         self.stream.close()
@@ -81,8 +89,11 @@ class TapTester(object):
 
         amplitude = get_rms( block )
 
+        print( "%s"%(self.current_state) )
+
         if amplitude > self.tap_threshold:
             # noisy block
+            self.current_state = 'RECORDING'
             self.quietcount = 0
             self.noisycount += 1
             if self.noisycount > OVERSENSITIVE:
