@@ -5,6 +5,7 @@
 import pyaudio
 import struct
 import math
+import audioop
 
 INITIAL_TAP_THRESHOLD = 0.010
 FORMAT = pyaudio.paInt16 
@@ -20,27 +21,9 @@ UNDERSENSITIVE = 120.0/INPUT_BLOCK_TIME
 # if the noise was longer than this many blocks, it's not a 'tap'
 MAX_TAP_BLOCKS = 0.15/INPUT_BLOCK_TIME
 
-def get_rms( block ):
-    # RMS amplitude is defined as the square root of the 
-    # mean over time of the square of the amplitude.
-    # so we need to convert this string of bytes into 
-    # a string of 16-bit samples...
+def get_rms (block):
+    return audioop.rms(block, 2) * SHORT_NORMALIZE
 
-    # we will get one short out for each 
-    # two chars in the string.
-    count = len(block)/2
-    format = "%dh"%(count)
-    shorts = struct.unpack( format, block )
-
-    # iterate over the block.
-    sum_squares = 0.0
-    for sample in shorts:
-        # sample is a signed short in +/- 32768. 
-        # normalize it to 1.0
-        n = sample * SHORT_NORMALIZE
-        sum_squares += n*n
-
-    return math.sqrt( sum_squares / count )
 
 class TapTester(object):
     def __init__(self):
@@ -97,6 +80,7 @@ class TapTester(object):
             return
 
         amplitude = get_rms( block )
+
         if amplitude > self.tap_threshold:
             # noisy block
             self.quietcount = 0
