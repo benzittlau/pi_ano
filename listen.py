@@ -7,6 +7,8 @@ import struct
 import math
 import audioop
 
+from recorder import Recorder
+
 INITIAL_TAP_THRESHOLD = 0.010
 FORMAT = pyaudio.paInt16 
 SHORT_NORMALIZE = (1.0/32768.0)
@@ -14,12 +16,9 @@ CHANNELS = 2
 RATE = 44100  
 INPUT_BLOCK_TIME = 0.05
 INPUT_FRAMES_PER_BLOCK = int(RATE*INPUT_BLOCK_TIME)
-# if we get this many noisy blocks in a row, increase the threshold
-OVERSENSITIVE = 15.0/INPUT_BLOCK_TIME                    
-# if we get this many quiet blocks in a row, decrease the threshold
-UNDERSENSITIVE = 120.0/INPUT_BLOCK_TIME 
-# if the noise was longer than this many blocks, it's not a 'tap'
-MAX_TAP_BLOCKS = 0.15/INPUT_BLOCK_TIME
+# if there is silence longer than this interval, close recording
+MAX_IN_RECORDING_SILENCE_IN_SECONDS = 3
+MAX_IN_RECORDING_SILENCE = MAX_IN_RECORDING_SILENCE_IN_SECONDS/INPUT_BLOCK_TIME
 
 # STATES
 # 'BOOTING'
@@ -31,16 +30,20 @@ def get_rms (block):
     return audioop.rms(block, 2) * SHORT_NORMALIZE
 
 
-class TapTester(object):
+class PiAno(object):
     def __init__(self):
         self.current_state = 'BOOTING'
         self.pa = pyaudio.PyAudio()
         self.stream = self.open_mic_stream()
         self.tap_threshold = INITIAL_TAP_THRESHOLD
-        self.noisycount = MAX_TAP_BLOCKS+1 
+        self.noisycount = 0
         self.quietcount = 0 
         self.errorcount = 0
         self.current_state = 'IDLE'
+
+        self.recorder = Recorder(CHANNELS, RATE, INPUT_FRAMES_PER_BLOCK)
+        self.recording_file = None
+        self.recording_index = 0
 
     def stop(self):
         self.stream.close()
@@ -74,8 +77,21 @@ class TapTester(object):
 
         return stream
 
-    def tapDetected(self):
-        print "Tap!"
+    def start_recording(self):
+        if self.recording_file is None:
+            filename = 'output/output_' + str(self.recording_index) + '.wav'
+            self.recording_file = self.recorder.open(filename, 'wb')
+            self.recording_index += 1
+
+        self.current_state = 'RECORDING'
+
+    def close_recording(self):
+        if self.recording_file is not None:
+            self.recording_file.close()
+            self.recording_file = None
+
+        self.current_state = 'POST_RECORDING'
+        self.current_state = 'IDLE'
 
     def listen(self):
         try:
@@ -93,25 +109,21 @@ class TapTester(object):
 
         if amplitude > self.tap_threshold:
             # noisy block
-            self.current_state = 'RECORDING'
             self.quietcount = 0
             self.noisycount += 1
-            if self.noisycount > OVERSENSITIVE:
-                # turn down the sensitivity
-                self.tap_threshold *= 1.1
+            self.start_recording()
         else:            
             # quiet block.
-
-            if 1 <= self.noisycount <= MAX_TAP_BLOCKS:
-                self.tapDetected()
             self.noisycount = 0
             self.quietcount += 1
-            if self.quietcount > UNDERSENSITIVE:
-                # turn up the sensitivity
-                self.tap_threshold *= 0.9
+            if self.quietcount > MAX_IN_RECORDING_SILENCE:
+                self.close_recording()
+
+        if self.recording_file is not None:
+            self.recording_file.write_frame(block)
 
 if __name__ == "__main__":
-    tt = TapTester()
+    tt = PiAno()
 
     for i in range(1000):
         tt.listen()
