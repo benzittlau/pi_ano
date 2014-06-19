@@ -1,6 +1,9 @@
 # Setup instructions
 Install NOOBS raspbian onto the device
 Update keyboard layout and locale to be en_US
+
+############### WiFi INSTRUCTIONS ###############
+
 Add a WPA_Supplicant configuration:
 
 /etc/wpa_supplicant/wpa_supplicant.conf
@@ -12,7 +15,7 @@ update_config=1
 network={
     ssid="#####"
     psk="######"
-    pianoroto=WPA
+    proto=WPA
     key_mgmt=WPA-PSK
     pairwise=TKIP
     group=TKIP
@@ -40,6 +43,30 @@ auto wlan0
     wpa-conf            /etc/wpa_supplicant/wpa_supplicant.conf
 ```
 
+############### ADAFRUIT INSTRUCTIONS ###############
+https://learn.adafruit.com/usb-audio-cards-with-a-raspberry-pi/cm108-type
+
+``` bash
+# Update firmware because it is a C-Media 108
+sudo apt-get install git-core
+sudo wget https://raw.github.com/Hexxeh/rpi-update/master/rpi-update -O /usr/bin/rpi-update
+sudo chmod +x /usr/bin/rpi-update
+sudo BRANCH=next rpi-update
+sudo reboot
+```
+
+``` bash
+# Update Alsa config https://learn.adafruit.com/usb-audio-cards-with-a-raspberry-pi/updating-alsa-config
+```
+
+``` bash
+# Tests  
+speaker-test -c2 -D hw:0,0
+aplay /usr/share/sounds/alsa/Front_Center.wav
+```
+
+############### Python setup ###############
+
 Clone the git project:
 ``` bash
 sudo git clone https://github.com/benzittlau/pi_ano.git .
@@ -65,4 +92,13 @@ Install PyAudio:
 #sudo apt-get install python-pyaudio
 sudo pip install pyaudio
 ```
+
+
+########### PULSE AUDIO #############
+``` bash
+sudo apt-get install pulseaudio
+```
+
+
+
 
