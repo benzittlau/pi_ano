@@ -2,6 +2,7 @@ import pyaudio
 import struct
 import math
 import audioop
+import os
 
 from pydub import AudioSegment
  
@@ -80,10 +81,18 @@ class PiAno(object):
     def close_recording(self):
         if self.recording_file is not None:
             self.recording_file.close()
-            self.recording_file = None
-            song = AudioSegment.from_wav(self.recording_filename + '.wav')
-            song.export(self.recording_filename + '.mp3', format="mp3")
 
+            # Create the mp3 file
+            song = AudioSegment.from_wav(self.recording_filename + '.wav')
+            # Slice off the ending tail out
+            length_without_silence = (song.duration_seconds - MAX_IN_RECORDING_SILENCE_IN_SECONDS + 1)
+            song = song[:(length_without_silence * 1000)]
+            # Export the MP3
+            song.export(self.recording_filename + '.mp3', format="mp3")
+            # Clean up the wav
+            os.remove(self.recording_filename + '.wav')
+
+            self.recording_file = None
             self.recording_filename = None
 
         self.current_state = 'POST_RECORDING'
