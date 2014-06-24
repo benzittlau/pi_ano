@@ -41,7 +41,11 @@ auto wlan0
     netmask 255.255.255.0
     gateway 192.168.0.1
     wpa-conf            /etc/wpa_supplicant/wpa_supplicant.conf
+    wireless-power off
 ```
+
+The wireless-power off is an attempt to fix network dropout by disabling power management
+on the wifi interface.
 
 ############### ADAFRUIT INSTRUCTIONS ###############
 https://learn.adafruit.com/usb-audio-cards-with-a-raspberry-pi/cm108-type
@@ -64,6 +68,8 @@ sudo reboot
 speaker-test -c2 -D hw:0,0
 aplay /usr/share/sounds/alsa/Front_Center.wav
 ```
+
+
 
 ############### Python setup ###############
 
@@ -95,10 +101,167 @@ sudo pip install pyaudio
 
 
 ########### PULSE AUDIO #############
+
+Note this ended up not being necessary, so you can ignore this step
+
 ``` bash
 sudo apt-get install pulseaudio
 ```
 
 
 
+
+
+
+
+
+
+############## WICD SETUP ##################
+
+NOTE: Decided not to use wicd because it doesn't support network fallback with priorities
+NOTE: went back to WICD after fighting with the default network management on raspbian.  The
+key that I think I was missing from before was deleting the entries from the /etc/network/interfaces file.
+
+If you’re using Raspbian, and you’ve not installed Wicd-curses just type:
+You’ll get a list of the wireless network found by the Raspberry PI
+
+``` bash
+sudo apt-get update
+sudo apt-get install wicd-cli wicd-curses
+sudo wicd-curses
+```
+
+You also need to remove the lines from the /etc/network/interfaces for wlan0 or it will
+cause issues for wicd.
+
+
+
+
+
+################## FFMPEG SETUP ##############
+
+http://sirlagz.net/2012/08/04/how-to-stream-a-webcam-from-the-raspberry-pi/
+
+1. Add the following lines into /etc/apt/sources.list
+    deb-src http://www.deb-multimedia.org sid main
+    deb http://www.deb-multimedia.org wheezy main non-free
+1. Run apt-get update
+1. Run apt-get install deb-multimedia-keyring
+1. Remove the second line from /etc/apt/sources.list
+    deb http://www.deb-multimedia.org wheezy main non-free
+1. Run apt-get source ffmpeg-dmo
+1. You should now have a folder called ffmpeg-dmo-0.11 <-- The version will change as time goes by.
+1. Change the directory to the folder containing the source. e.g. cd ffmpeg-dmo-0.11
+1. Run ./configure to setup the source.
+1. Run make && make install to compile and install ffmpeg
+1. if you are not running as root like I am, then you will need to run the above command with sudo
+
+Install pydub
+https://github.com/jiaaro/pydub/
+
+``` bash
+sudo pip install pydub
+```
+
+
+################## Debugging Wifi ##############
+
+NetworkManager - Wifi network manager
+wpa_supplicant - implements key negotiation and controls roaming
+
+network manager farms out to wpa_supplicant
+
+the wpa_supplicant package provides the wpa-* options for /etc/network/interfaces.  If they are used wpa_supplicant is started in the background
+https://wiki.debian.org/WiFi/HowToUse#wpa_supplicant
+
+``` bash
+dmesg | grep wlan0
+cat /var/log/messages | grep wlan0
+cat /var/log/deamon.log | grep wlan0
+sudo wpa_supplicant -c /etc/wpa_supplicant/wpa_supplicant.conf -i wlan0 -d
+```
+
+http://manpages.ubuntu.com/manpages/lucid/en/man5/interfaces.5.html
+http://www.freebsd.org/cgi/man.cgi?wpa_supplicant.conf(5)
+
+################## Wifi Files before going to WICD again ##############
+
+/etc/network/interfaces
+``` 
+auto lo
+
+iface lo inet loopback
+
+iface default inet dhcp
+
+allow-hotplug wlan0
+auto wlan0
+iface wlan0 inet manual
+wpa-roam /etc/wpa_supplicant/wpa_supplicantsupplicant.conf
+
+iface ben-home inet static
+address 192.168.0.91
+netmask 255.255.255.0
+gateway 192.168.0.1
+
+iface ben-home-fallback inet staticatic
+address 192.168.0.91
+netmask 255.255.255.0
+gateway 192.168.0.1
+```
+
+
+/etc/wpa_supplicant/wpa_supplicant.conf
+``` 
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=0
+update_config=1
+
+network={
+ssid="GBZ2_4_BR"
+priority=2012psk="gbz80211bgn"
+proto=WPA2
+key_mgmt=WPA-PSK
+pairwise=TKIP
+group=TKIP
+id_str="ben-home"
+}
+
+network={
+ssid="GBZ2_4"
+priority=1
+psk="ssidgbz80211bgn"
+proto=WPA
+key_mgmt=WPA-PSK
+pairwise=TKIP
+group=TKIP
+ind_str="ben-home-fallback"
+}
+```
+
+################## BACK TO WICD...  ##############
+After alot of hacking around with the configuration files I finally
+ended up going back to WICD.  My best guess is that last time I attempted
+to use it I didn't remove the entries from /etc/network/interfaces.  Here's
+what my /etc/network/interfaces looks like now
+
+/etc/network/interfaces
+```
+auto lo
+
+iface lo inet loopback
+
+iface default inet dhcp
+
+auto wlan0
+```
+
+With my two wireless networks configured in WICD I verified that I
+can kill the stronger network and have it fallback to the weaker one.
+
+The main limitation here is that I can't prioritize the enabled networks
+other than due to their relative strengths.  I think getting it to work
+that way will require some further research into the network
+management on the RPi (I could get this to work manually running
+wpa_supplicant with the last configuration and the debug command from above)
 

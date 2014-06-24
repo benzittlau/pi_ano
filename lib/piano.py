@@ -2,6 +2,8 @@ import pyaudio
 import struct
 import math
 import audioop
+
+from pydub import AudioSegment
  
 INITIAL_TRIGGER_THRESHOLD = 0.05
 FORMAT = pyaudio.paInt16 
@@ -28,6 +30,7 @@ class PiAno(object):
         self.current_state = 'IDLE'
 
         self.recorder = Recorder(CHANNELS, RATE, INPUT_FRAMES_PER_BLOCK)
+        self.recording_filename = None
         self.recording_file = None
         self.recording_index = 0
 
@@ -68,8 +71,8 @@ class PiAno(object):
 
     def start_recording(self):
         if self.recording_file is None:
-            filename = 'output/output_' + str(self.recording_index) + '.wav'
-            self.recording_file = self.recorder.open(filename, 'wb')
+            self.recording_filename = 'output/output_' + str(self.recording_index)
+            self.recording_file = self.recorder.open(self.recording_filename + '.wav', 'wb')
             self.recording_index += 1
 
         self.current_state = 'RECORDING'
@@ -78,6 +81,10 @@ class PiAno(object):
         if self.recording_file is not None:
             self.recording_file.close()
             self.recording_file = None
+            song = AudioSegment.from_wav(self.recording_filename + '.wav')
+            song.export(self.recording_filename + '.mp3', format="mp3")
+
+            self.recording_filename = None
 
         self.current_state = 'POST_RECORDING'
         self.current_state = 'IDLE'
