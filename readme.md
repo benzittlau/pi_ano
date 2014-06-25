@@ -140,6 +140,12 @@ cause issues for wicd.
 
 ################## FFMPEG SETUP ##############
 
+
+Before:
+``` bash
+sudo apt-get install libmp3lame-dev
+```
+
 http://sirlagz.net/2012/08/04/how-to-stream-a-webcam-from-the-raspberry-pi/
 
 1. Add the following lines into /etc/apt/sources.list

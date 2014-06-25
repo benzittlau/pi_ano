@@ -1,3 +1,12 @@
+"""
+Module for passively triggered music recordings
+
+This module contains a class which has been designed to
+handle processing an incoming audio stream and based
+on that stream triggering the start and stop of a 
+recording.  It currently only supports outputting
+that recording to an MP3 file.
+"""
 import pyaudio
 import struct
 import math
@@ -5,68 +14,67 @@ import audioop
 import os
 
 from pydub import AudioSegment
- 
-INITIAL_TRIGGER_THRESHOLD = 0.05
-FORMAT = pyaudio.paInt16 
-SHORT_NORMALIZE = (1.0/32768.0)
-CHANNELS = 1
-RATE = 44100  
-INPUT_BLOCK_TIME = 0.05
-INPUT_FRAMES_PER_BLOCK = int(RATE*INPUT_BLOCK_TIME)
-# if there is silence longer than this interval, close recording
-MAX_IN_RECORDING_SILENCE_IN_SECONDS = 3
-MAX_IN_RECORDING_SILENCE = MAX_IN_RECORDING_SILENCE_IN_SECONDS/INPUT_BLOCK_TIME
-
 from lib.recorder import Recorder
+ 
+#INITIAL_TRIGGER_THRESHOLD = 0.05
+#FORMAT = pyaudio.paInt16 
+#CHANNELS = 1
+#RATE = 44100  
+#INPUT_BLOCK_TIME = 0.05
+#INPUT_FRAMES_PER_BLOCK = int(RATE*INPUT_BLOCK_TIME)
+## if there is silence longer than this interval, close recording
+#TERMINATING_SILENCE_IN_SECONDS = 3
+#TERMINATING_SILENCE = TERMINATING_SILENCE_IN_SECONDS/INPUT_BLOCK_TIME
+
 
 class PiAno(object):
-    def __init__(self):
+    SHORT_NORMALIZE = (1.0/32768.0)
+
+    def __init__(self, **kwargs):
+        property_defaults = {
+                "channels": 1,
+                "device_index": 1,
+                "format": pyaudio.paInt16,
+                "rate": 44100,
+                "input_block_time": 0.05,
+                "trigger_threshold": 0.05,
+                "terminating_silence_in_seconds": 3
+                }
+
+        for (prop, default) in property_defaults.iteritems():
+            setattr(self, prop, kwargs.get(prop, default))
+
+        self.input_frames_per_block = int(self.rate * self.input_block_time)
+        self.terminating_silence = self.terminating_silence_in_seconds / self.input_block_time
+
         self.current_state = 'BOOTING'
-        self.pa = pyaudio.PyAudio()
-        self.stream = self.open_mic_stream()
-        self.trigger_threshold = INITIAL_TRIGGER_THRESHOLD
         self.noisycount = 0
         self.quietcount = 0 
         self.errorcount = 0
         self.current_state = 'IDLE'
 
-        self.recorder = Recorder(CHANNELS, RATE, INPUT_FRAMES_PER_BLOCK)
+        self.pa = pyaudio.PyAudio()
+        self.stream = self.open_mic_stream()
+
+
+        self.recorder = Recorder(self.channels, self.rate, self.input_frames_per_block)
         self.recording_filename = None
         self.recording_file = None
         self.recording_index = 0
 
     def get_rms (self, block):
-        return audioop.rms(block, 2) * SHORT_NORMALIZE
+        return audioop.rms(block, 2) * self.SHORT_NORMALIZE
 
     def stop(self):
         self.stream.close()
 
-    def find_input_device(self):
-        device_index = None            
-        for i in range( self.pa.get_device_count() ):     
-            devinfo = self.pa.get_device_info_by_index(i)   
-            print( "Device %d: %s"%(i,devinfo["name"]) )
-
-            for keyword in ["sound", "mic"]:
-                if keyword in devinfo["name"].lower():
-                    print( "Found an input: device %d - %s"%(i,devinfo["name"]) )
-                    device_index = i
-                    return device_index
-
-        if device_index == None:
-            print( "No preferred input found; using default input device." )
-
-        return device_index
-
     def open_mic_stream( self ):
-        device_index = self.find_input_device()
-
-        stream = self.pa.open(   format = FORMAT,
-                                 channels = CHANNELS,
-                                 rate = RATE,
+        stream = self.pa.open(   format = self.format,
+                                 channels = self.channels,
+                                 rate = self.rate,
                                  input = True,
-                                 input_device_index = device_index,
-                                 frames_per_buffer = INPUT_FRAMES_PER_BLOCK)
+                                 input_device_index = self.device_index,
+                                 frames_per_buffer = self.input_frames_per_block)
 
         return stream
 
@@ -85,7 +93,7 @@ class PiAno(object):
             # Create the mp3 file
             song = AudioSegment.from_wav(self.recording_filename + '.wav')
             # Slice off the ending tail out
-            length_without_silence = (song.duration_seconds - MAX_IN_RECORDING_SILENCE_IN_SECONDS + 1)
+            length_without_silence = (song.duration_seconds - self.terminating_silence_in_seconds + 1)
             song = song[:(length_without_silence * 1000)]
             # Export the MP3
             song.export(self.recording_filename + '.mp3', format="mp3")
@@ -100,7 +108,7 @@ class PiAno(object):
 
     def listen(self):
         try:
-            block = self.stream.read(INPUT_FRAMES_PER_BLOCK)
+            block = self.stream.read(self.input_frames_per_block)
         except IOError, e:
             # dammit. 
             self.errorcount += 1
@@ -121,7 +129,7 @@ class PiAno(object):
             # quiet block.
             self.noisycount = 0
             self.quietcount += 1
-            if self.quietcount > MAX_IN_RECORDING_SILENCE:
+            if self.quietcount > self.terminating_silence:
                 self.close_recording()
 
         if self.recording_file is not None:
