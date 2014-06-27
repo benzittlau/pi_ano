@@ -15,7 +15,7 @@ import os
 import time
 
 from lib.recorder import Recorder
-from subprocess import call
+from subprocess import Popen
 
 class PiAno(object):
     SHORT_NORMALIZE = (1.0/32768.0)
@@ -81,7 +81,7 @@ class PiAno(object):
         if self.recording_file is not None:
             self.recording_file.close()
 
-            call(["python", "post_recording.py", "-i", self.recording_filename, "-s", str(self.terminating_silence_in_seconds)])
+            Popen(["python", "post_recording.py", "-i", self.recording_filename, "-s", str(self.terminating_silence_in_seconds)])
 
             self.recording_file = None
             self.recording_filename = None
