@@ -12,20 +12,10 @@ import struct
 import math
 import audioop
 import os
+import time
 
-from pydub import AudioSegment
 from lib.recorder import Recorder
- 
-#INITIAL_TRIGGER_THRESHOLD = 0.05
-#FORMAT = pyaudio.paInt16 
-#CHANNELS = 1
-#RATE = 44100  
-#INPUT_BLOCK_TIME = 0.05
-#INPUT_FRAMES_PER_BLOCK = int(RATE*INPUT_BLOCK_TIME)
-## if there is silence longer than this interval, close recording
-#TERMINATING_SILENCE_IN_SECONDS = 3
-#TERMINATING_SILENCE = TERMINATING_SILENCE_IN_SECONDS/INPUT_BLOCK_TIME
-
+from subprocess import call
 
 class PiAno(object):
     SHORT_NORMALIZE = (1.0/32768.0)
@@ -60,7 +50,6 @@ class PiAno(object):
         self.recorder = Recorder(self.channels, self.rate, self.input_frames_per_block)
         self.recording_filename = None
         self.recording_file = None
-        self.recording_index = 0
 
     def get_rms (self, block):
         return audioop.rms(block, 2) * self.SHORT_NORMALIZE
@@ -80,30 +69,23 @@ class PiAno(object):
 
     def start_recording(self):
         if self.recording_file is None:
-            self.recording_filename = 'output/output_' + str(self.recording_index)
-            self.recording_file = self.recorder.open(self.recording_filename + '.wav', 'wb')
-            self.recording_index += 1
+            epoch_time = int(time.time())
+            self.recording_filename = 'output/output_' + str(epoch_time) + '.wav'
+            self.recording_file = self.recorder.open(self.recording_filename, 'wb')
 
         self.current_state = 'RECORDING'
 
     def close_recording(self):
+        self.current_state = 'POST_RECORDING'
+
         if self.recording_file is not None:
             self.recording_file.close()
 
-            # Create the mp3 file
-            song = AudioSegment.from_wav(self.recording_filename + '.wav')
-            # Slice off the ending tail out
-            length_without_silence = (song.duration_seconds - self.terminating_silence_in_seconds + 1)
-            song = song[:(length_without_silence * 1000)]
-            # Export the MP3
-            song.export(self.recording_filename + '.mp3', format="mp3")
-            # Clean up the wav
-            os.remove(self.recording_filename + '.wav')
+            call(["python", "post_recording.py", "-i", self.recording_filename, "-s", str(self.terminating_silence_in_seconds)])
 
             self.recording_file = None
             self.recording_filename = None
 
-        self.current_state = 'POST_RECORDING'
         self.current_state = 'IDLE'
 
     def listen(self):
