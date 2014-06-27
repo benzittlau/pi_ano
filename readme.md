@@ -162,6 +162,9 @@ http://sirlagz.net/2012/08/04/how-to-stream-a-webcam-from-the-raspberry-pi/
 1. Run make && make install to compile and install ffmpeg
 1. if you are not running as root like I am, then you will need to run the above command with sudo
 
+
+BENS NOTE: Do ./configure --enable-libmp3lame to add mp3 encoding suppork
+
 Install pydub
 https://github.com/jiaaro/pydub/
 
@@ -271,3 +274,57 @@ that way will require some further research into the network
 management on the RPi (I could get this to work manually running
 wpa_supplicant with the last configuration and the debug command from above)
 
+
+############# SETTING UP THE TUNNEL #################
+Create an ssh key on the pi and copy it to the server
+
+http://www.tunnelsup.com/raspberry-pi-phoning-home-using-a-reverse-remote-ssh-tunnel
+
+``` bash
+ssh-keygen -t rsa
+scp id_rsa.pub <user>@<yourhost>:~/.ssh/authorized_keys
+```
+
+
+Disable password authentication by setting PasswordAuthentication to no in
+/etc/ssh/sshd_config and then restart
+
+``` bash
+sudo reload ssh
+```
+
+
+Install upstart and autossh
+
+``` bash
+sudo apt-get install upstart
+sudo apt-get install autossh
+```
+
+Add the following to /etc/init/ssh_tunnel.conf so upstart will manage the tunnel
+
+/etc/init/ssh_tunnel.conf
+``` bash
+description "SSH Tunnel"
+
+start on (net-device-up IFACE=wlan0)
+stop on runlevel[016]
+
+respawn
+
+env DISPLAY=:0.0
+
+exec autossh -nNT -o ServerAliveInterval=15 -R 0.0.0.0:9999:localhost:22 tunnel@tunnel.zittlau.ca -i /home/pi/.ssh/id_rsa
+```
+
+
+Manually connect to verify the ssh fingerprint, otherwise the upstart job will fail
+``` bash
+pi@raspberrypi ~ $ sudo -u root autossh -nNT -o ServerAliveInterval=15 -R 9999:localhost:22 tunnel@54.191.9.88 -i /home/pi/.ssh/id_rsa
+```
+
+
+Had to make this change to open up to external connections directly:
+http://superuser.com/questions/588591/how-to-make-ssh-tunnel-open-to-public
+``` bash 
+```
