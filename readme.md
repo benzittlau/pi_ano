@@ -326,5 +326,11 @@ pi@raspberrypi ~ $ sudo -u root autossh -nNT -o ServerAliveInterval=15 -R 9999:l
 
 Had to make this change to open up to external connections directly:
 http://superuser.com/questions/588591/how-to-make-ssh-tunnel-open-to-public
-``` bash 
+
+
+################# SOUND CLOUD SETUP ####################
+
+Install the python sdk
+``` bash
+sudo pip install soundcloud
 ```
