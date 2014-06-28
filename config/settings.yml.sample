@@ -4,3 +4,6 @@ soundcloud:
     client_id: <client_id>
     client_secret: <client_secret>
     timezone: America/Edmonton
+
+pi_ano:
+    device_index: 0
