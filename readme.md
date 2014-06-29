@@ -99,6 +99,16 @@ Install PyAudio:
 sudo pip install pyaudio
 ```
 
+Install pyyaml:
+``` bash
+sudo pip install pyyaml
+```
+
+Install pyyaml:
+``` bash
+sudo pip install pytz
+```
+
 
 ########### PULSE AUDIO #############
 
@@ -331,6 +341,11 @@ http://superuser.com/questions/588591/how-to-make-ssh-tunnel-open-to-public
 ################# SOUND CLOUD SETUP ####################
 
 Install the python sdk
+
+``` bash
+sudo pip install --upgrade distribute
+```
+
 ``` bash
 sudo pip install soundcloud
 ```
@@ -350,3 +365,36 @@ setuid pi
 respawn
 exec python /srv/pi_ano/listen.py
 ```
+
+
+################### HOW THE TRIGGERS WORK ####################
+"start_trigger_time": 3,
+"stop_trigger_time": 7,
+"start_trigger_threshold": 0.03,
+"stop_trigger_threshold": 0.01,
+
+start_trigger_time: The time box in seconds for which an rms value is
+taken to determine if there is sufficient amplitude to expect
+that someone is playing.
+
+stop_trigger_time: The time box in seconds for which an rms value is
+taken to determine if the activity has slowed enough to expect
+that the performance has stopped.
+
+start_trigger_threshold: The value that the timeboxed rms value is
+compared to (greater than) when starting a recording to decide if the activity
+is signifcant to start recording.
+
+stop_trigger_threshold: The value that the timeboxed rms value is
+compared to (less than) when stopping a recording to determine
+if the activity is minimal enough to expect the piece is finished.
+
+stopping_tail_time: The amount of time that will be appended to the end
+of the recording from the buffer after the decision has been made to end
+the recording.  This slice is taken from the portion of the buffer used 
+by stop_trigger_time.  E.g., if you had a stop_trigger_time of 7 seconds,
+and a stopping_tail_time of 3 seconds, there would be 4 seconds at the end
+of the stop_trigger_time window which would be discarded and not added to 
+the recording.
+
+
