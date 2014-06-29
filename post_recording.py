@@ -69,9 +69,11 @@ def main(argv):
     # print track link
     # print track.permalink_url
 
-    # Clean up the wav
     if not preserve_files:
+        # Clean up the wav
         os.remove(input_file)
+        # Clean up the mp3
+        os.remove(output_file)
 
 
 if __name__ == "__main__":
