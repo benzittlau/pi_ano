@@ -25,22 +25,22 @@ class PiAno(object):
     SHORT_NORMALIZE = (1.0/32768.0)
 
     def __init__(self, **kwargs):
+        self.current_state = 'BOOTING'
+
         property_defaults = {
                 "channels": 1,
                 "device_index": 1,
                 "format": pyaudio.paInt16,
                 "rate": 44100,
                 "input_frames_per_block": 1024,
-                "trigger_threshold": 0.05,
-                "start_trigger_time": 3,
+                "start_trigger_time": 1,
                 "stop_trigger_time": 7,
                 "start_trigger_threshold": 0.04,
                 "stop_trigger_threshold": 0.01,
                 "stopping_tail_time": 3,
                 "verbose": False,
-                "verbose_frame_resolution": 1,
-                "timezone": "America/Edmonton",
-                "terminating_silence_in_seconds": 3
+                "verbose_frame_resolution": 10,
+                "timezone": "America/Edmonton"
                 }
 
         for (prop, default) in property_defaults.iteritems():
@@ -57,13 +57,7 @@ class PiAno(object):
 
         self.initialize_rolling_buffer()
 
-        self.terminating_silence = self.terminating_silence_in_seconds / self.input_block_time
-
-        self.current_state = 'BOOTING'
-        self.noisycount = 0
-        self.quietcount = 0 
         self.errorcount = 0
-        self.current_state = 'IDLE'
         self.verbose_frame_count = 0
 
         if self.verbose:
@@ -74,10 +68,11 @@ class PiAno(object):
         self.pa = pyaudio.PyAudio()
         self.stream = self.open_mic_stream()
 
-
         self.recorder = Recorder(self.channels, self.rate, self.input_frames_per_block)
         self.recording_filename = None
         self.recording_file = None
+
+        self.current_state = 'IDLE'
 
     def current_formatted_time(self):
         local_timezone = timezone(self.timezone)
@@ -145,7 +140,7 @@ class PiAno(object):
 
             self.recording_file.close()
 
-            #Popen(["python", "post_recording.py", "-i", self.recording_filename, "-s", str(self.terminating_silence_in_seconds)])
+            Popen(["python", "post_recording.py", "-i", self.recording_filename])
 
             self.recording_file = None
             self.recording_filename = None

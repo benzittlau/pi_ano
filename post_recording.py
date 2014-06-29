@@ -26,6 +26,7 @@ def main(argv):
 
     # Configure some defaults
     preserve_files = False
+    terminating_silence = 0
 
     # Load in command line options
     for opt, arg in opts:

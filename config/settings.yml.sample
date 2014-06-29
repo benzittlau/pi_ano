@@ -7,5 +7,7 @@ soundcloud:
 
 pi_ano:
     timezone: America/Edmonton
-    device_index: 0
-    verbose: !!bool "No"
+    device_index: 1
+    input_frames_per_block: 512
+    verbose: !!bool "Yes"
+    verbose_frame_resolution: 10
