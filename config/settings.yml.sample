@@ -6,4 +6,6 @@ soundcloud:
     timezone: America/Edmonton
 
 pi_ano:
+    timezone: America/Edmonton
     device_index: 0
+    verbose: !!bool "No"

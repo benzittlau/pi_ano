@@ -334,3 +334,19 @@ Install the python sdk
 ``` bash
 sudo pip install soundcloud
 ```
+
+################# PYTHON UPSTART TASK ####################
+
+/etc/init/pi_ano.conf
+``` bash
+start on runlevel [2345]
+stop on runlevel [016]
+
+chdir /srv/pi_ano
+
+setgid pi
+setuid pi
+
+respawn
+exec python /srv/pi_ano/listen.py
+```

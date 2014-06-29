@@ -13,9 +13,11 @@ import math
 import audioop
 import os
 import time
+import datetime
 
 from lib.recorder import Recorder
 from subprocess import Popen
+from pytz import timezone    
 
 class PiAno(object):
     SHORT_NORMALIZE = (1.0/32768.0)
@@ -28,6 +30,8 @@ class PiAno(object):
                 "rate": 44100,
                 "input_block_time": 0.05,
                 "trigger_threshold": 0.05,
+                "verbose": False,
+                "timezone": "America/Edmonton",
                 "terminating_silence_in_seconds": 3
                 }
 
@@ -43,6 +47,11 @@ class PiAno(object):
         self.errorcount = 0
         self.current_state = 'IDLE'
 
+        if self.verbose:
+            print "Starting PiAno in Verbose Mode"
+        else:
+            print "Starting PiAno in Normal Mode"
+
         self.pa = pyaudio.PyAudio()
         self.stream = self.open_mic_stream()
 
@@ -50,6 +59,14 @@ class PiAno(object):
         self.recorder = Recorder(self.channels, self.rate, self.input_frames_per_block)
         self.recording_filename = None
         self.recording_file = None
+
+    def current_formatted_time(self):
+        local_timezone = timezone(self.timezone)
+        current_time = datetime.datetime.now(local_timezone)
+        formatted_time = current_time.strftime('%l:%M:%S %p %B %d, %Y')
+
+        return formatted_time
+
 
     def get_rms (self, block):
         return audioop.rms(block, 2) * self.SHORT_NORMALIZE
@@ -69,6 +86,7 @@ class PiAno(object):
 
     def start_recording(self):
         if self.recording_file is None:
+            print self.current_formatted_time() + ' :: Starting Recording'
             epoch_time = int(time.time())
             self.recording_filename = 'output/output_' + str(epoch_time) + '.wav'
             self.recording_file = self.recorder.open(self.recording_filename, 'wb')
@@ -79,6 +97,7 @@ class PiAno(object):
         self.current_state = 'POST_RECORDING'
 
         if self.recording_file is not None:
+            print self.current_formatted_time() + ' :: Stopping Recording'
             self.recording_file.close()
 
             Popen(["python", "post_recording.py", "-i", self.recording_filename, "-s", str(self.terminating_silence_in_seconds)])
@@ -100,7 +119,8 @@ class PiAno(object):
 
         amplitude = self.get_rms( block )
 
-        print( "%s - %.2f"%(self.current_state, amplitude) )
+        if self.verbose:
+            print( "%s - %.2f"%(self.current_state, amplitude) )
 
         if amplitude > self.trigger_threshold:
             # noisy block
