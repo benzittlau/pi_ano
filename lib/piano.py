@@ -33,11 +33,12 @@ class PiAno(object):
                 "format": pyaudio.paInt16,
                 "rate": 44100,
                 "input_frames_per_block": 1024,
-                "start_trigger_time": 1,
+                "start_trigger_time": 2,
                 "stop_trigger_time": 7,
-                "start_trigger_threshold": 0.04,
-                "stop_trigger_threshold": 0.01,
-                "stopping_tail_time": 3,
+                "start_trigger_threshold": 0.02,
+                "stop_trigger_threshold": 0.005,
+                "start_trigger_percentage": 0.5,
+                "stop_trigger_percentage": 0.5,
                 "verbose": False,
                 "verbose_frame_resolution": 10,
                 "timezone": "America/Edmonton"
@@ -52,10 +53,11 @@ class PiAno(object):
         # against the rolling buffer
         self.start_trigger_frames = int(self.start_trigger_time / self.input_block_time)
         self.stop_trigger_frames = int(self.stop_trigger_time / self.input_block_time)
-        self.stopping_trail_frames = int(self.stopping_tail_time / self.input_block_time)
         self.rolling_buffer_frames = max(self.start_trigger_frames, self.stop_trigger_frames)
 
         self.initialize_rolling_buffer()
+        self.reset_start_trigger_buffer()
+        self.reset_stop_trigger_buffer()
 
         self.errorcount = 0
         self.verbose_frame_count = 0
@@ -88,6 +90,16 @@ class PiAno(object):
         self.rolling_buffer = deque()
         for x in range(self.rolling_buffer_frames):
             self.rolling_buffer.append(self.get_empty_block())
+
+    def reset_start_trigger_buffer(self):
+        self.start_trigger_buffer = deque(maxlen = self.start_trigger_frames)
+        for x in range(self.start_trigger_frames):
+            self.start_trigger_buffer.append(0)
+
+    def reset_stop_trigger_buffer(self):
+        self.stop_trigger_buffer = deque(maxlen = self.stop_trigger_frames)
+        for x in range(self.stop_trigger_frames):
+            self.stop_trigger_buffer.append(1)
 
 
     def get_rms (self, block):
@@ -129,36 +141,41 @@ class PiAno(object):
         if self.recording_file is not None:
             print self.current_formatted_time() + ' :: Stopping Recording'
 
-            #Handle the stopping_trail frames
-            # This loops through the early portion of the buffer
+            # This basically makes sure we're not truncating
+            # the recording at the end due to the buffering
             # appending the defined number of frames to our
-            # recording.
-            start  = self.stop_trigger_frames - 1
-            stop = self.stop_trigger_frames - self.stopping_trail_frames - 1
-            for i in xrange(start, stop, -1):
-                self.recording_file.write_frame(self.rolling_buffer[i])
+            # recording.  It basically loops backwards through
+            # the rolling buffer.
+            for x in reversed(self.rolling_buffer):
+                self.recording_file.write_frame(x)
+
 
             self.recording_file.close()
 
-            Popen(["python", "post_recording.py", "-i", self.recording_filename])
+            #Popen(["python", "post_recording.py", "-i", self.recording_filename])
 
             self.recording_file = None
             self.recording_filename = None
 
         self.current_state = 'IDLE'
 
-    def start_buffer_amplitude(self):
-        return self.get_buffer_rms(self.start_trigger_frames)
+    def current_start_trigger_percentage(self):
+        passing_frames = filter(lambda frame_rms: frame_rms > self.start_trigger_threshold, self.start_trigger_buffer)
+        return float(len(passing_frames)) / self.start_trigger_frames
 
-    def stop_buffer_amplitude(self):
-        return self.get_buffer_rms(self.stop_trigger_frames)
+    def current_stop_trigger_percentage(self):
+        passing_frames = filter(lambda frame_rms: frame_rms < self.stop_trigger_threshold, self.stop_trigger_buffer)
+        return float(len(passing_frames)) / self.stop_trigger_frames
+
 
     def handle_state_machine(self):
         if self.current_state == 'IDLE':
-            if self.start_buffer_amplitude() > self.start_trigger_threshold:
+            if self.current_start_trigger_percentage() > self.start_trigger_percentage:
+                self.reset_stop_trigger_buffer()
                 self.start_recording()
         elif self.current_state == 'RECORDING':
-            if self.stop_buffer_amplitude() < self.stop_trigger_threshold:
+            if self.current_stop_trigger_percentage() > self.stop_trigger_percentage:
+                self.reset_start_trigger_buffer()
                 self.close_recording()
 
     def handle_popped_block(self, block):
@@ -177,13 +194,16 @@ class PiAno(object):
 
         amplitude = self.get_rms( block )
 
-        # Rotate the buffer
+        # Rotate the buffers
         popped_block = self.rolling_buffer.pop()
         self.rolling_buffer.appendleft(block)
 
+        self.start_trigger_buffer.appendleft(amplitude)
+        self.stop_trigger_buffer.appendleft(amplitude)
+
         if self.verbose:
             if self.verbose_frame_count > self.verbose_frame_resolution:
-                print( '%s\t%.4f\t%.4f\t%.4f'%(self.current_state, amplitude, self.start_buffer_amplitude(), self.stop_buffer_amplitude()) )
+                print( '%s\t%.4f\t%.4f\t%.4f'%(self.current_state, amplitude, self.current_start_trigger_percentage(), self.current_stop_trigger_percentage()) )
                 self.verbose_frame_count = 1
             else:
                 self.verbose_frame_count += 1
