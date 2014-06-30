@@ -152,7 +152,7 @@ class PiAno(object):
 
             self.recording_file.close()
 
-            #Popen(["python", "post_recording.py", "-i", self.recording_filename])
+            Popen(["python", "post_recording.py", "-i", self.recording_filename])
 
             self.recording_file = None
             self.recording_filename = None
