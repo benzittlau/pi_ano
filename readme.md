@@ -383,3 +383,14 @@ the start trigger percentage.
 
 The percentage is the number of frames in the defined window that must be above
 the threshold to cause a start or stop trigger.
+
+
+################### DETERMINING DEFAULT SAMPLING RATE FOR A DEVICE ###############
+http://www.voxforge.org/home/docs/faq/faq/linux-how-to-determine-your-audio-cards-or-usb-mics-maximum-sampling-rate
+
+This makes a big differences towards avoiding input overflows
+
+Use arecord with a sampling rate higher than you think it supports (in this case 80k)
+``` bash
+arecord -f cd -D hw:0,0 -c 1 -d 4 -r 80000 test.wav
+```

@@ -16,6 +16,7 @@ import time
 import datetime
 import itertools
 
+from lib.logger import log, log_levels, set_log_level_stream
 from lib.recorder import Recorder
 from subprocess import Popen
 from pytz import timezone    
@@ -39,8 +40,10 @@ class PiAno(object):
                 "stop_trigger_threshold": 0.005,
                 "start_trigger_percentage": 0.5,
                 "stop_trigger_percentage": 0.5,
-                "verbose": False,
-                "verbose_frame_resolution": 10,
+                "log_level_enabled": False,
+                "log_level_frame_resolution": 10,
+                "log_level_file": None,
+                "log_level_file_mode": 'a',
                 "timezone": "America/Edmonton"
                 }
 
@@ -60,12 +63,15 @@ class PiAno(object):
         self.reset_stop_trigger_buffer()
 
         self.errorcount = 0
-        self.verbose_frame_count = 0
+        self.log_level_frame_count = 0
 
-        if self.verbose:
-            print "Starting PiAno in Verbose Mode"
+        if self.log_level_enabled:
+            print "Starting PiAno in With Level Logging Enabled"
+            # Set the log level file if provided
+            if self.log_level_file is not None:
+                set_log_level_stream(open(self.log_level_file, self.log_level_file_mode, 0))
         else:
-            print "Starting PiAno in Normal Mode"
+            print "Starting PiAno in WIth Level Logging Disabled"
 
         self.pa = pyaudio.PyAudio()
         self.stream = self.open_mic_stream()
@@ -76,12 +82,6 @@ class PiAno(object):
 
         self.current_state = 'IDLE'
 
-    def current_formatted_time(self):
-        local_timezone = timezone(self.timezone)
-        current_time = datetime.datetime.now(local_timezone)
-        formatted_time = current_time.strftime('%l:%M:%S %p %B %d, %Y')
-
-        return formatted_time
 
     def get_empty_block(self):
         return ''.join([chr(0) for x in range(self.input_frames_per_block)])
@@ -129,17 +129,21 @@ class PiAno(object):
         return stream
 
     def start_recording(self):
-        print self.current_formatted_time() + ' :: Starting Recording'
         self.current_state = 'RECORDING'
         epoch_time = int(time.time())
+
+        self.recording_time = epoch_time
         self.recording_filename = 'output/output_' + str(epoch_time) + '.wav'
         self.recording_file = self.recorder.open(self.recording_filename, 'wb')
 
+        log("Started Recording", self.recording_time)
+
     def close_recording(self):
+        log("Stopped Recording", self.recording_time)
+
         self.current_state = 'POST_RECORDING'
 
         if self.recording_file is not None:
-            print self.current_formatted_time() + ' :: Stopping Recording'
 
             # This basically makes sure we're not truncating
             # the recording at the end due to the buffering
@@ -152,8 +156,9 @@ class PiAno(object):
 
             self.recording_file.close()
 
-            Popen(["python", "post_recording.py", "-i", self.recording_filename])
+            Popen(["python", "post_recording.py", "-f", self.recording_filename, "-i", str(self.recording_time) ])
 
+            self.recording_time = None
             self.recording_file = None
             self.recording_filename = None
 
@@ -201,12 +206,21 @@ class PiAno(object):
         self.start_trigger_buffer.appendleft(amplitude)
         self.stop_trigger_buffer.appendleft(amplitude)
 
-        if self.verbose:
-            if self.verbose_frame_count > self.verbose_frame_resolution:
-                print( '%s\t%.4f\t%.4f\t%.4f'%(self.current_state, amplitude, self.current_start_trigger_percentage(), self.current_stop_trigger_percentage()) )
-                self.verbose_frame_count = 1
+        if self.log_level_enabled:
+            if self.log_level_frame_count > self.log_level_frame_resolution:
+                log_level_outputs = []
+                log_level_outputs.append( "%s"%(self.current_state) )
+                log_level_outputs.append( "%.4f"%(amplitude) )
+                log_level_outputs.append( "%.4f"%(self.current_start_trigger_percentage()) )
+                log_level_outputs.append( "%.4f"%(self.current_stop_trigger_percentage()) )
+
+                if self.current_state == 'RECORDING':
+                    log_level_outputs.append( "%d"%(self.recording_time) )
+
+                self.log_level_frame_count = 1
+                log_levels(log_level_outputs)
             else:
-                self.verbose_frame_count += 1
+                self.log_level_frame_count += 1
 
 
         self.handle_state_machine()
