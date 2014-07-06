@@ -9,5 +9,13 @@ pi_ano:
     timezone: America/Edmonton
     device_index: 1
     input_frames_per_block: 512
-    verbose: !!bool "Yes"
-    verbose_frame_resolution: 10
+    start_trigger_treshold: 0.002
+    start_trigger_time: 1
+    log_level_enabled: !!bool "Yes"
+    log_level_frame_resolution: 10
+    log_level_file: 'output/levels.log'
+
+post_recording:
+    remove_mp3_files: !!bool "No"
+    remove_wav_files: !!bool "No"
+    upload_enabled: !!bool "No"
