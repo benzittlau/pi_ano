@@ -422,6 +422,11 @@ Link the castle
 homesick link vim-castle
 ```
 
+Install full vim
+``` bash
+sudo apt-get install vim
+```
+
 This needs more work because my current vim config doesn't work with the version of vim on the pi
 
 

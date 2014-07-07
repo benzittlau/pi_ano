@@ -188,13 +188,14 @@ class PiAno(object):
             self.recording_file.write_frame(block)
 
     def listen(self):
+        available_frames = self.stream.get_read_available()
+        chunk_size = max(available_frames, self.input_frames_per_block)
         try:
-            block = self.stream.read(self.input_frames_per_block)
+            block = self.stream.read(chunk_size)
         except IOError, e:
             # dammit. 
             self.errorcount += 1
             print( "(%d) Error recording: %s"%(self.errorcount,e) )
-            self.noisycount = 1
             return
 
         amplitude = self.get_rms( block )
