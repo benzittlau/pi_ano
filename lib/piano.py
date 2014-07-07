@@ -188,10 +188,8 @@ class PiAno(object):
             self.recording_file.write_frame(block)
 
     def listen(self):
-        available_frames = self.stream.get_read_available()
-        chunk_size = max(available_frames, self.input_frames_per_block)
         try:
-            block = self.stream.read(chunk_size)
+            block = self.stream.read(self.input_frames_per_block)
         except IOError, e:
             # dammit. 
             self.errorcount += 1
