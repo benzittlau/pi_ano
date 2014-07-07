@@ -91,7 +91,6 @@ def main(argv):
             log("Attempting to upload to pi-ano with id %s and length %d"%(recording_id, length))
 
             r = requests.post(url, files=files, data=data)
-            print r.text
 
             log("Finished attempting to upload to pi-ano")
 
