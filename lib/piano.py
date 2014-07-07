@@ -62,7 +62,6 @@ class PiAno(object):
         self.reset_start_trigger_buffer()
         self.reset_stop_trigger_buffer()
 
-        self.errorcount = 0
         self.log_level_frame_count = 0
 
         if self.log_level_enabled:
@@ -188,12 +187,16 @@ class PiAno(object):
             self.recording_file.write_frame(block)
 
     def listen(self):
+        available_frames = self.stream.get_read_available()
         try:
             block = self.stream.read(self.input_frames_per_block)
         except IOError, e:
             # dammit. 
-            self.errorcount += 1
-            print( "(%d) Error recording: %s"%(self.errorcount,e) )
+            failure_outputs = []
+            failure_outputs.append( "FAIL" )
+            failure_outputs.append( "%d"%(available_frames) )
+
+            log_levels(failure_outputs)
             return
 
         amplitude = self.get_rms( block )
@@ -209,6 +212,7 @@ class PiAno(object):
             if self.log_level_frame_count > self.log_level_frame_resolution:
                 log_level_outputs = []
                 log_level_outputs.append( "%s"%(self.current_state) )
+                log_level_outputs.append( "%d"%(available_frames) )
                 log_level_outputs.append( "%.4f"%(amplitude) )
                 log_level_outputs.append( "%.4f"%(self.current_start_trigger_percentage()) )
                 log_level_outputs.append( "%.4f"%(self.current_stop_trigger_percentage()) )
