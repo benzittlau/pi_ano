@@ -394,3 +394,42 @@ Use arecord with a sampling rate higher than you think it supports (in this case
 ``` bash
 arecord -f cd -D hw:0,0 -c 1 -d 4 -r 80000 test.wav
 ```
+
+############# SETTING UP MY VIM FILES ##############
+Install updated version of ruby using rvm for homesick
+This is very slow; an hour plus.
+``` bash
+\curl -sSL https://get.rvm.io | bash -s stable --ruby
+```
+
+Install ruby gems
+``` bash
+sudo apt-get install rubygems
+```
+
+Install homesick
+``` bash
+gem install homesick --no-ri --no-doc
+```
+
+Install the castle
+``` bash
+homesick clone benzittlau/vim-castle
+```
+
+Link the castle
+``` bash
+homesick link vim-castle
+```
+
+This needs more work because my current vim config doesn't work with the version of vim on the pi
+
+
+############# SETTING UP MY VIM FILES ##############
+Implementing our custom API
+
+Install requests
+``` bash
+sudo pip install requests
+```
+

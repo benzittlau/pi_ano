@@ -6,6 +6,7 @@ import getopt
 import os
 import datetime
 import soundcloud
+import requests
 
 from lib.logger import log
 from pydub import AudioSegment
@@ -44,6 +45,7 @@ def main(argv):
     remove_wav_files = config['post_recording']['remove_wav_files']
     remove_mp3_files = config['post_recording']['remove_mp3_files']
     upload_enabled = config['post_recording']['upload_enabled']
+    upload_target = config['post_recording']['upload_target']
 
     # Create the mp3 file
     log("Loading file from path %s"%(input_file), recording_id)
@@ -63,20 +65,35 @@ def main(argv):
     formatted_time = current_time.strftime('%l:%M %p %B %d, %Y')
 
     if upload_enabled:
-        # create client soundcloud object with app and user credentials
-        client = soundcloud.Client(client_id=config['soundcloud']['client_id'],
-                client_secret=config['soundcloud']['client_secret'],
-                username=config['soundcloud']['username'],
-                password=config['soundcloud']['password'])
-        
-        title = 'PiAno Recording - ' + recording_id + ' - ' + formatted_time
+        if upload_target == 'Soundcloud':
+            # create client soundcloud object with app and user credentials
+            client = soundcloud.Client(client_id=config['soundcloud']['client_id'],
+                    client_secret=config['soundcloud']['client_secret'],
+                    username=config['soundcloud']['username'],
+                    password=config['soundcloud']['password'])
+            
+            title = 'PiAno Recording - ' + recording_id + ' - ' + formatted_time
 
-        # upload audio file
-        log("Attempting to upload to soundcloud with name %s"%(title))
-        track = client.post('/tracks', track={
-                'title': title,
-                    'asset_data': open(output_file, 'rb')
-                    })
+            # upload audio file
+            log("Attempting to upload to soundcloud with name %s"%(title))
+            track = client.post('/tracks', track={
+                    'title': title,
+                        'asset_data': open(output_file, 'rb')
+                        })
+
+            log("Finished attempting to upload to soundcloud")
+
+        if upload_target == 'PiAno':
+            url = 'http://pi-ano.herokuapp.com/recording'
+            files = {'file': open(output_file, 'rb')}
+            data = {'recorded_at': recording_id, 'length': length}
+
+            log("Attempting to upload to pi-ano with id %s and length %d"%(recording_id, length))
+
+            r = requests.post(url, files=files, data=data)
+            print r.text
+
+            log("Finished attempting to upload to pi-ano")
 
     # print track link
     # print track.permalink_url

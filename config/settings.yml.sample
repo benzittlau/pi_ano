@@ -18,4 +18,7 @@ pi_ano:
 post_recording:
     remove_mp3_files: !!bool "No"
     remove_wav_files: !!bool "No"
-    upload_enabled: !!bool "No"
+    #upload_enabled: !!bool "No"
+    #upload_target: "Soundcloud"
+    upload_enabled: !!bool "Yes"
+    upload_target: "PiAno"
