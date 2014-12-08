@@ -2,7 +2,14 @@
 Install NOOBS raspbian onto the device
 Update keyboard layout and locale to be en_US
 
+If you don't see a us option edit
+/etc/default/keyboard
+instead
+
 ############### WiFi INSTRUCTIONS ###############
+
+NOTE: The second time around I just followed the instructions
+[here](https://learn.adafruit.com/adafruits-raspberry-pi-lesson-3-network-setup/setting-up-wifi-with-occidentalis) instead of messing around with all of this.
 
 Add a WPA_Supplicant configuration:
 
@@ -50,6 +57,8 @@ on the wifi interface.
 ############### ADAFRUIT INSTRUCTIONS ###############
 https://learn.adafruit.com/usb-audio-cards-with-a-raspberry-pi/cm108-type
 
+NOTE: After doing this trying to setup the V2 I was no longer able to use a USB keyboard with the raspberry pi.  I'm hoping this actually isn't necessary with a Model B+
+
 ``` bash
 # Update firmware because it is a C-Media 108
 sudo apt-get install git-core
@@ -59,8 +68,15 @@ sudo BRANCH=next rpi-update
 sudo reboot
 ```
 
+NOTE: REGARDLESS OF IF YOU DO ABOVE, DO THIS
 ``` bash
 # Update Alsa config https://learn.adafruit.com/usb-audio-cards-with-a-raspberry-pi/updating-alsa-config
+
+# sudo nano /etc/modprobe.d/alsa-base.conf
+# Change
+options snd-usb-audio index=-2
+# to
+options snd-usb-audio index=0
 ```
 
 ``` bash
@@ -69,9 +85,16 @@ speaker-test -c2 -D hw:0,0
 aplay /usr/share/sounds/alsa/Front_Center.wav
 ```
 
-
-
 ############### Python setup ###############
+
+Setup a project directory
+```
+sudo mkdir /srv/pi_ano
+cd /srv/pi_ano
+sudo chown /srv/pi_ano
+sudo chgrp /srv/pi_ano
+```
+
 
 Clone the git project:
 ``` bash
@@ -104,7 +127,7 @@ Install pyyaml:
 sudo pip install pyyaml
 ```
 
-Install pyyaml:
+Install pytz:
 ``` bash
 sudo pip install pytz
 ```
@@ -156,6 +179,8 @@ Before:
 sudo apt-get install libmp3lame-dev
 ```
 
+BENS NOTE: At stop 8 Do ./configure --enable-libmp3lame to add mp3 encoding support
+
 http://sirlagz.net/2012/08/04/how-to-stream-a-webcam-from-the-raspberry-pi/
 
 1. Add the following lines into /etc/apt/sources.list
@@ -172,8 +197,23 @@ http://sirlagz.net/2012/08/04/how-to-stream-a-webcam-from-the-raspberry-pi/
 1. Run make && make install to compile and install ffmpeg
 1. if you are not running as root like I am, then you will need to run the above command with sudo
 
+################## USED THESE NEWS INSTRUCTIONS ON V2
 
-BENS NOTE: Do ./configure --enable-libmp3lame to add mp3 encoding suppork
+```
+cd /usr/src
+git clone git://source.ffmpeg.org/ffmpeg.git
+```
+
+Git retrieved the source code I needed to build ffmpeg from scratch, which is next up !
+*Note*
+If you need sound for ffmpeg, you will need to also install the
+```
+libasound2-dev package which enables ALSA.
+
+cd ffmpeg
+./configure
+make && make install
+````
 
 Install pydub
 https://github.com/jiaaro/pydub/
@@ -206,7 +246,7 @@ http://www.freebsd.org/cgi/man.cgi?wpa_supplicant.conf(5)
 ################## Wifi Files before going to WICD again ##############
 
 /etc/network/interfaces
-``` 
+```
 auto lo
 
 iface lo inet loopback
@@ -231,7 +271,7 @@ gateway 192.168.0.1
 
 
 /etc/wpa_supplicant/wpa_supplicant.conf
-``` 
+```
 ctrl_interface=/var/run/wpa_supplicant
 ctrl_interface_group=0
 update_config=1
@@ -291,12 +331,18 @@ Create an ssh key on the pi and copy it to the server
 http://www.tunnelsup.com/raspberry-pi-phoning-home-using-a-reverse-remote-ssh-tunnel
 
 ``` bash
+cd ~/.ssh
 ssh-keygen -t rsa
+# This is probably oversimplified as you'll need to use a computer which has the
+# ssh key to copy to the server
+
+# WARNING: Take care not to overwrite any existing authorized keys and that this
+# goes to the tunnel user, not the primary ubuntu user
 scp id_rsa.pub <user>@<yourhost>:~/.ssh/authorized_keys
 ```
 
 
-Disable password authentication by setting PasswordAuthentication to no in
+Disable password authentication **on the server** by setting PasswordAuthentication to no in
 /etc/ssh/sshd_config and then restart
 
 ``` bash
@@ -304,11 +350,26 @@ sudo reload ssh
 ```
 
 
-Install upstart and autossh
+Install upstart and autossh on the pi
 
 ``` bash
 sudo apt-get install upstart
 sudo apt-get install autossh
+```
+
+After that we need to ensure the ssh gateways are all still starting under upstart, or
+we'll lose the ability to use the serial cable to communicate with the device.
+
+Here's what the getty ps listing looks like on a raspberry pi before installing upstart
+``` bash
+pi@raspberrypi /etc/init $ ps aux | grep getty
+root      2276  0.0  0.1   3988   812 tty2     Ss+  Dec01   0:00 /sbin/getty 38400 tty2
+root      2277  0.0  0.1   3988   812 tty3     Ss+  Dec01   0:00 /sbin/getty 38400 tty3
+root      2278  0.0  0.1   3988   812 tty4     Ss+  Dec01   0:00 /sbin/getty 38400 tty4
+root      2279  0.0  0.1   3988   812 tty5     Ss+  Dec01   0:00 /sbin/getty 38400 tty5
+root      2280  0.0  0.1   3988   812 tty6     Ss+  Dec01   0:00 /sbin/getty 38400 tty6
+root      2281  0.0  0.1   2068   732 ?        Ss+  Dec01   0:00 /sbin/getty -L ttyAMA0 115200 vt100
+pi        6442  0.0  0.1   3760   744 pts/1    S+   18:27   0:00 grep --color=auto getty
 ```
 
 Add the following to /etc/init/ssh_tunnel.conf so upstart will manage the tunnel
@@ -337,6 +398,10 @@ pi@raspberrypi ~ $ sudo -u root autossh -nNT -o ServerAliveInterval=15 -R 9999:l
 Had to make this change to open up to external connections directly:
 http://superuser.com/questions/588591/how-to-make-ssh-tunnel-open-to-public
 
+You should then be able to connect through the tunnel
+``` bash
+ruby-2.1.2 ➜  ~  ssh tunnel.zittlau.ca -l pi -p 9999
+```
 
 ################# SOUND CLOUD SETUP ####################
 
@@ -438,3 +503,79 @@ Install requests
 sudo pip install requests
 ```
 
+
+############## SETTING UP WIFI IN THE WILD ##########
+RPi's mac address: 00:0f:13:38:13:52
+Mac's mac address: 7c:d1:c3:f6:95:bd
+
+############## USING THE USB TO TTL CABLE ##########
+https://learn.adafruit.com/adafruits-raspberry-pi-lesson-5-using-a-console-cable/test-and-configure
+
+Trying to debug why it's not working on the PiAno image, but it does work on the AirPi image.
+https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=675569
+
+getty version on PiAno: util-linux 2.20.1
+getty version on AirPi: util-linux 2.20.1
+
+NOTE: The reason this wasn't working was that I changed over to upstart and didn't create a
+ttyAMA0 getty conf file in /etc/init.  I've added this as a step above, so this shouldn't happen
+on new builds.
+
+############## SETTING UP NETGEAR AS ROUTER ##########
+Put DDWRT on the router:
+ http://burnmytime.com/howto_install_dd-wrt_firmware_on_netgear-wndr3400v2/#comment-3214
+
+login:password
+pi:raspberry
+
+############## RUNNING
+Setup the settings file
+```
+cp config/settings.yml.sample config/settings.yml
+vi config/settings.yml
+```
+
+Create a log directory
+```
+mkdir output
+```
+Run
+```
+cd /srv/pi_ano
+python listen.py
+```
+
+############## cannot locate cpu MHz in /proc/cpuinfo
+
+Trying out these instructions
+https://gist.github.com/rogerallen/0346a1812deda2a380da
+```
+#Install prerequisite packages:
+sudo apt-get build-dep jackd2
+
+#Install the source package:
+apt-get source jackd2
+```
+
+Got errros.
+
+
+Next Attempt
+```
+apt-get update && apt-get install libjack-jackd2-0
+```
+
+Now I'm getting the error:
+Jack server is not running or cannot be started
+```
+# Tried installing
+sudo apt-get install jack
+```
+
+I'm getting values in the log file, so it looks like it's working regardless of this error
+
+############### TUNING MIC GAIN
+The mic gain can be tuned using the `alsamixer` command.  Make sure the gain is being increased for the mic capture, not the mic playback.
+
+############## WORKING WITH THE TIKI MIC
+The mic defaults into blue "Speech" mode, whereas I would prefer it to default into purple "Natural" mode. Think I'll come back to this issue if I have time.

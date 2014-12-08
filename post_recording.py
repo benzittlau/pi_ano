@@ -10,7 +10,7 @@ import requests
 
 from lib.logger import log
 from pydub import AudioSegment
-from pytz import timezone    
+from pytz import timezone
 
 def current_formatted_time(self, current_timezone):
     local_timezone = timezone(current_timezone)
@@ -58,6 +58,7 @@ def main(argv):
 
     log("Exporting to mp3 at path %s"%(output_file), recording_id)
     song.export(output_file, format="mp3")
+    log("Completed exporting to mp3 at path %s"%(output_file), recording_id)
 
     # Get the date for the file name
     local_timezone = timezone(config['soundcloud']['timezone'])
@@ -71,8 +72,8 @@ def main(argv):
                     client_secret=config['soundcloud']['client_secret'],
                     username=config['soundcloud']['username'],
                     password=config['soundcloud']['password'])
-            
-            title = 'PiAno Recording - ' + recording_id + ' - ' + formatted_time
+
+            title = 'PiAno Recording - ' + str(recording_id) + ' - ' + formatted_time
 
             # upload audio file
             log("Attempting to upload to soundcloud with name %s"%(title))
@@ -99,12 +100,12 @@ def main(argv):
 
     if remove_wav_files:
         # Clean up the wav
-        log("Removin the wav file at path %s"%(input_file))
+        log("Removing the wav file at path %s"%(input_file))
         os.remove(input_file)
 
     if remove_mp3_files:
         # Clean up the mp3
-        log("Removin the mp3 file at path %s"%(output_file))
+        log("Removing the mp3 file at path %s"%(output_file))
         os.remove(output_file)
 
 
